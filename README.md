@@ -1,45 +1,50 @@
-# Penny’s Payoff 🐾
+# Penny’s Playdate 🐾
 
-A Streamlit video-choice research prototype starring Penny Lane.
+Streamlit caregiver-response research prototype. The GitHub repository and deployment location remain `StepAnalyzerTool/pennys-payoff`; the app and downloaded data use Penny’s Playdate.
 
-## Run
+## Run and deploy
 
-```bash
-pip install -r requirements.txt
-streamlit run app.py
-```
+Install `requirements.txt`, then run `streamlit run app.py`. Streamlit Community Cloud entry point: `app.py`, branch `main`.
 
-## Deploy to Streamlit Community Cloud
+## Setup
 
-Create an app from `StepAnalyzerTool/pennys-payoff`, branch `main`, entry point `app.py`. No secrets or database are required.
+The sound test appears first. Researcher setup selects the target response (Say “Stop Barking!” or Pet Penny) and condition (No barking, Negative reinforcement, Extinction). The participant sees the selected response and Tell Penny “Sit!”, with no condition names or contingency explanation. Both buttons are always available during the session; each click is recorded.
 
-## Prototype rules
+Defaults: 5 trials, 20-second observation windows, 40-second onset intervals, and a 5-second extinction omission requirement. The 40-second interval is a provisional shortened schedule, still adjustable. Quiet lead-in lasts one interval. Default onsets: 40, 80, 120, 160, 200 seconds. Default session end: 240 seconds, extended if an extinction episode is ongoing.
 
-- Use the Test sound player at the top of setup to check device volume. Test audio stops when the session is prepared.
+- No barking: quiet throughout, with identical observation windows and posture resets.
+- Negative reinforcement: each trial starts barking; the target response immediately stops it until the next scheduled onset. Without a target response it stops after the trial window.
+- Extinction: barking lasts at least the trial window and stops only when 5 seconds have elapsed without a target response. Repeated target responses reset that requirement; Sit does not.
+- Every actual trial onset resets posture to standing. Sit changes posture to sitting without changing barking. Posture persists through the quiet period; petting preserves posture. Repeated Sit responses are recorded but do not restart the sitting transition.
+- No response-dependent future barking probabilities, toy response, or black screens.
 
-- Tangible Reinforcement is available. Petting Reinforcement is pending its outcome clip.
-- First trial always starts with barking, with sound. Click Start session to enable playback.
-- Only one response per barking trial; all response buttons immediately disable after selection.
-- Throw the toy stops the barking video, plays the complete toy-toss clip once, and ends the trial when that clip finishes. This can extend beyond 10 seconds if selected late.
-- Other responses leave barking running until 10 seconds from trial onset.
-- Every trial ends with a one-second black screen, then the next trial begins automatically.
-- Default 5 trials, initial barking probability 50%, changes of 10 percentage points, bounded at 10–90%. The first forced barking trial also updates this underlying probability after a response.
-- Toy responses increase future barking probability; other responses decrease it. No response leaves the probability unchanged.
-- Quiet trials show “Penny is quiet” for the trial duration, with buttons disabled, and leave probability unchanged.
-- These are programmed simulation rules, not a validated model of a real dog's behavior.
+The original study used 30-second windows, 60-second onsets, and usually 9 trials. This prototype is an adaptation, not an exact replication. Its explicit overlap policy (not specified in the article): if extinction continues across a scheduled onset, that onset is skipped and logged. Do not reset posture or cut off the ongoing episode. Do not add replacement trials. Session end waits for extinction to finish; End session always remains available.
 
-Researcher setup allows changing trial count, timeout, black interval and probability parameters. Controls are hidden during the session. Participant instructions do not reveal the contingency. Browser timing is approximate; background tabs and buffering can affect it. Visibility changes and video waiting events are included in JSON.
+Reference: Miller, Lerman, & Fritz (2010), https://doi.org/10.1901/jaba.2010.43-769.
 
-## Media
+## Media and researcher preview
 
-Included clips: `frontend/media/barking.mp4` and `frontend/media/toy-toss.mp4`. Replace these files to update the stimuli. The toy clip retains its original audio; the creator confirmed the dog is quiet in it. No quiet-dog or petting clip is substituted with an unrelated video.
+Only the original mixed-posture barking clip and sound check are currently available for this version. Researcher preview is on by default and clearly identified. Missing barking visuals can use `barking.mp4`; missing quiet visuals use a text placeholder. Missing petting does not show an actual pet action. Model posture is shown separately from temporary footage. Preview data are flagged in all exports. This is for checking the interface and contingencies, not collecting study data with completed stimuli.
+
+Turn preview off to require all clips needed for the selected condition and target response. Upload these to `frontend/media`:
+
+- `standing-barking.mp4`
+- `standing-quiet.mp4`
+- `sit-barking.mp4`
+- `sit-quiet.mp4`
+- `standing-petting-barking.mp4`
+- `standing-petting-quiet.mp4`
+- `sitting-petting-barking.mp4`
+- `sitting-petting-quiet.mp4`
+
+Sit clips must finish the transition within 2 seconds; the seated loop starts at second 2. Inspect that segment before using new footage. Pet clips play once (up to 8 seconds) before returning to the matching posture/state loop. Repeated pet responses are recorded without restarting an ongoing pet animation. Sit can interrupt petting; scheduled onsets override action animations. Barking changes select the corresponding quiet/barking variant. No command audio is generated or played yet; responses are labeled buttons with brief visual acknowledgement. `sound-check.mp3` is used only by the startup audio player. The toy clip is retained in the repository but unused.
+
+Browser playback, buffering, background tabs and media transitions can affect actual presentation timing. The clock runs independently of clip duration; waiting and visibility events are logged. Inspect new clips and actual playback before data collection.
 
 ## Data
 
-Download CSV trial data and JSON full session data after completion or early termination. JSON includes all settings and event records. CSV includes participant/session ID, trial, forced barking flag, random draw, probability before/after, response, latency, duration, timestamps and end reason. Interrupted trials are retained and identified by their end reason.
+Download trial CSV, response CSV, and full JSON. Trial counts/occurrence cover the fixed observation windows, including quiet responses following early relief. Responses in initial quiet, between trials, or during an extinction extension are separately tagged in the response log. Skipped windows have `skipped=true` and should not be interpreted as observed zero-response trials. Exports identify caregiver target, condition and preview status. JSON contains settings, actual episode offsets, all responses, event logs and end reason. There is no automatic participant-data storage; download before closing or refreshing.
 
-Data remain in page memory; refresh, closing the page or starting a new session discards them. There is no participant database or automatic server-side storage. Download before leaving. CSV protects text cells against formula interpretation.
+## Checks
 
-## Validation
-
-`node tests/task.test.cjs` exercises the task controller with simulated media and time: first trial, late toy selection, outcome completion, response lockout, timeout, black interval, probability changes, quiet and no-response trials, and early termination. Streamlit AppTest startup passed. Real browser audiovisual playback still requires deployment testing; browser installation was blocked in the development environment.
+`node tests/task.test.cjs` checks the pure timing/response model, including omission extensions, overlap, posture and quiet responses. `node tests/ui.test.cjs` checks setup and controller integration with simulated DOM/media. Actual audiovisual playback needs a check in the deployed app.

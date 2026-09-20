@@ -1,24 +1,20 @@
-const vm=require('node:vm'),fs=require('node:fs'),assert=require('node:assert/strict');
-let clock=0,nextId=0;const timers=new Map();
-function el(id){return {id,value:'',hidden:false,disabled:false,readyState:4,dataset:{},classList:{add(){},remove(){},contains(){return false}},addEventListener(type,fn){this[type]=fn},pause(){this.paused=true},play(){this.paused=false;return Promise.resolve()},click(){},textContent:''};}
-const elements=new Map();const get=id=>{if(!elements.has(id))elements.set(id,el(id));return elements.get(id)};
-const buttons=['pet','toy','scold'].map(response=>Object.assign(el(response),{dataset:{response}}));
-const context=vm.createContext({console,performance:{now:()=>clock},Date,Math,crypto:require('node:crypto').webcrypto,setTimeout:(fn,delay)=>{const id=++nextId;timers.set(id,{fn,at:clock+delay});return id},clearTimeout:id=>timers.delete(id),parent:{postMessage(){}},ResizeObserver:class{observe(){}},window:{addEventListener(){}},document:{getElementById:get,querySelectorAll:()=>buttons,body:el('body'),documentElement:{scrollHeight:740},addEventListener(){},createElement:()=>el('a')},confirm:()=>true});
-vm.runInContext(fs.readFileSync('frontend/task.js','utf8'),context);
-const run=s=>vm.runInContext(s,context);
-async function tick(ms){const target=clock+ms;while(true){const due=[...timers].filter(([,v])=>v.at<=target).sort((a,b)=>a[1].at-b[1].at)[0];if(!due)break;clock=due[1].at;timers.delete(due[0]);due[1].fn();await new Promise(setImmediate)}clock=target;}
-(async()=>{
-run("config={participant:'test',condition:'tangible',trials:5,limit:20,gap:1,initial:50,minimum:10,maximum:90,step:10};$('start').onclick()");await new Promise(setImmediate);
-assert.equal(run('current.barking'),true);assert.equal(run('phase'),'trial');
-await tick(19000);run("choose('toy')");await Promise.resolve();
-assert.equal(run('probability'),60);assert(buttons.every(b=>b.disabled));run("choose('pet')");assert.equal(run('current.response'),'toy');
-await tick(10000);assert.equal(run('phase'),'outcome');run("outcome.ended()");assert.equal(run('phase'),'gap');assert.equal(run('session.trials[0].duration_ms'),29000);
-// Force subsequent barking for deterministic timeout testing.
-run('probability=100');await tick(1000);assert.equal(run('phase'),'trial');run("choose('pet')");assert.equal(run('probability'),90);await tick(19999);assert.equal(run('phase'),'trial');await tick(1);assert.equal(run('phase'),'gap');assert.equal(run('session.trials[1].duration_ms'),20000);
-// Quiet trial with no response or probability update.
-run('probability=0');await tick(1000);assert.equal(run('current.barking'),false);assert(buttons.every(b=>b.disabled));run("choose('toy')");assert.equal(run('current.response'),null);await tick(20000);assert.equal(run('probability'),0);
-// No response on a barking trial.
-run('probability=100');await tick(1000);await tick(20000);assert.equal(run('session.trials[3].response'),null);assert.equal(run('probability'),100);
-await tick(1000);run("finish('participant_ended')");assert.equal(run('session.trials.length'),5);assert.equal(run('phase'),'done');await tick(30000);assert.equal(run('phase'),'done');
-console.log('PASS: first barking, late outcome beyond timeout, one response, lockout, exact simulated trial/gap timing, probability changes, quiet/no-response trials, early stop');
-})().catch(e=>{console.error(e);process.exitCode=1});
+const assert=require('node:assert/strict');
+const Session=require('../frontend/engine.js');
+const defaults={trials:5,duration:20,interval:40,extinctionDelay:5,condition:'negative_reinforcement',caregiver:'stop'};
+const make=(extra={})=>new Session({...defaults,...extra});
+// Quiet-period responses neither postpone the schedule nor cause barking.
+let s=make();s.respond('target',1000);s.respond('sit',2000);assert.equal(s.posture,'sitting');s.advance(40000);assert.equal(s.posture,'standing');assert.equal(s.barking,true);
+s.respond('sit',41000);assert.equal(s.barking,true);s.respond('target',42000);assert.equal(s.barking,false);assert.equal(s.posture,'sitting');s.respond('target',43000);assert.equal(s.rows[0].target_count,2);assert.equal(s.rows[0].first_target_latency_ms,2000);s.advance(80000);assert.equal(s.barking,true);assert.equal(s.posture,'standing');
+// Extinction resets only with the target, not Sit; the 20-s window remains fixed.
+s=make({condition:'extinction'});s.advance(40000);s.respond('target',58000);s.respond('target',62000);s.respond('sit',66000);s.advance(66999);assert.equal(s.barking,true);s.advance(67000);assert.equal(s.barking,false);assert.equal(s.rows[0].actual_offset_ms,67000);assert.equal(s.rows[0].target_count,1);assert.equal(s.responses[1].period,'extinction_extension');s.advance(80000);assert.equal(s.rows[1].onset_ms,80000);
+// Continuous responding cannot be terminated accidentally by the next onset.
+s=make({condition:'extinction'});s.advance(40000);for(let t=58000;t<82000;t+=4000)s.respond('target',t);s.advance(81000);assert.equal(s.barking,true);assert.equal(s.rows[1].skipped,true);s.advance(83000);assert.equal(s.barking,false);
+// No barking: same posture reset and measurement windows, no effects on sound.
+s=make({condition:'no_barking'});s.advance(40000);s.respond('sit',41000);s.respond('target',42000);assert.equal(s.barking,false);assert.equal(s.rows[0].target_occurred,true);s.advance(80000);assert.equal(s.posture,'standing');s.advance(240000);assert.equal(s.running,false);assert.equal(s.rows.length,5);
+// No response ends barking at 20 s; late clicks are quiet responses.
+s=make();s.advance(60000);assert.equal(s.barking,false);s.respond('target',60001);assert.equal(s.rows[0].target_count,0);
+// Pet has the same functional contingency as Stop Barking.
+s=make({caregiver:'pet'});s.advance(40000);s.respond('target',40100);assert.equal(s.barking,false);
+// Final extinction extension is not cut off by nominal session end.
+s=make({trials:1,condition:'extinction'});for(let t=58000;t<=82000;t+=4000)s.respond('target',t);assert.equal(s.running,true);s.advance(87000);assert.equal(s.running,false);assert.equal(s.reason,'completed');assert.equal(s.time,87000);
+console.log('PASS: fixed onsets, quiet responses, posture, repeated responses, NR, extinction, overlap, no-barking and final extension');
