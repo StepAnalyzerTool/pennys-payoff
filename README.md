@@ -20,8 +20,8 @@ Create an app from `StepAnalyzerTool/pennys-payoff`, branch `main`, entry point 
 - Tangible Reinforcement is available. Petting Reinforcement is pending its outcome clip.
 - First trial always starts with barking, with sound. Click Start session to enable playback.
 - Only one response per barking trial; all response buttons immediately disable after selection.
-- Throw the toy stops the barking video, plays the complete toy-toss clip once, and ends the trial when that clip finishes. This can extend beyond 20 seconds if selected late.
-- Other responses leave barking running until 20 seconds from trial onset.
+- Throw the toy stops the barking video, plays the complete toy-toss clip once, and ends the trial when that clip finishes. This can extend beyond 10 seconds if selected late.
+- Other responses leave barking running until 10 seconds from trial onset.
 - Every trial ends with a one-second black screen, then the next trial begins automatically.
 - Default 5 trials, initial barking probability 50%, changes of 10 percentage points, bounded at 10–90%. The first forced barking trial also updates this underlying probability after a response.
 - Toy responses increase future barking probability; other responses decrease it. No response leaves the probability unchanged.
