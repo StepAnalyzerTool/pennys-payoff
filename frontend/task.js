@@ -26,6 +26,7 @@ $('settings').addEventListener('submit',e=>{
   config={participant:$('participant').value.trim(),condition:$('condition').value};
   for(const key of ['trials','limit','gap','initial','step','minimum','maximum'])config[key]=Number($(key).value);
   if(!config.participant||config.minimum>config.maximum||config.initial<config.minimum||config.initial>config.maximum){$('error').textContent='Enter a participant ID and ensure minimum ≤ initial probability ≤ maximum.';return;}
+  const soundCheck=$('sound-check');soundCheck.pause();soundCheck.currentTime=0;
   $('error').textContent='';phase='ready';show('ready');
   const check=()=>{if(bark.readyState>=3&&outcome.readyState>=3){$('start').disabled=false;$('start').textContent='Start session';}};
   bark.addEventListener('canplay',check);outcome.addEventListener('canplay',check);check();

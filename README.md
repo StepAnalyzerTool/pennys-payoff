@@ -15,13 +15,15 @@ Create an app from `StepAnalyzerTool/pennys-payoff`, branch `main`, entry point 
 
 ## Prototype rules
 
+- Use the Test sound player at the top of setup to check device volume. Test audio stops when the session is prepared.
+
 - Tangible Reinforcement is available. Petting Reinforcement is pending its outcome clip.
 - First trial always starts with barking, with sound. Click Start session to enable playback.
 - Only one response per barking trial; all response buttons immediately disable after selection.
 - Throw the toy stops the barking video, plays the complete toy-toss clip once, and ends the trial when that clip finishes. This can extend beyond 20 seconds if selected late.
 - Other responses leave barking running until 20 seconds from trial onset.
 - Every trial ends with a one-second black screen, then the next trial begins automatically.
-- Default 20 trials, initial barking probability 50%, changes of 10 percentage points, bounded at 10–90%. The first forced barking trial also updates this underlying probability after a response.
+- Default 5 trials, initial barking probability 50%, changes of 10 percentage points, bounded at 10–90%. The first forced barking trial also updates this underlying probability after a response.
 - Toy responses increase future barking probability; other responses decrease it. No response leaves the probability unchanged.
 - Quiet trials show “Penny is quiet” for the trial duration, with buttons disabled, and leave probability unchanged.
 - These are programmed simulation rules, not a validated model of a real dog's behavior.
