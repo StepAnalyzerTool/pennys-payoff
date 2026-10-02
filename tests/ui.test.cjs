@@ -5,13 +5,13 @@ class Element{
  addEventListener(n,fn){this.listeners[n]=fn;}removeEventListener(){}replaceChildren(){}insertBefore(){}load(){}pause(){this.paused=true;}play(){this.paused=false;return Promise.resolve();}click(){}
 }
 const html=fs.readFileSync('frontend/index.html','utf8'),elements={};for(const m of html.matchAll(/id="([^"]+)"/g))elements[m[1]]=new Element();
-for(const [key,value]of Object.entries({participant:'TEST',caregiver:'stop',condition:'negative_reinforcement',trials:'5',duration:'20',interval:'40',extinctionDelay:'5'}))elements[key].value=value;elements.preview.checked=true;
+for(const [key,value]of Object.entries({participant:'TEST',caregiver:'stop',condition:'negative_reinforcement',trials:'5',duration:'20',interval:'40',extinctionDelay:'5'}))elements[key].value=value;
 const context=vm.createContext({document:{getElementById:id=>{assert.ok(elements[id],id);return elements[id];},createElement:()=>new Element(),documentElement:{scrollHeight:900},body:new Element(),addEventListener(){}},window:{addEventListener:(n,fn)=>{messageHandler=fn;}},parent:{postMessage(){}},ResizeObserver:class{observe(){}},performance:{now:()=>clock},crypto:{randomUUID:()=> 'test'},setInterval:()=>1,clearInterval(){},setTimeout:()=>1,clearTimeout(){},confirm:()=>true,console,Blob,URL});
 vm.runInContext(fs.readFileSync('frontend/engine.js','utf8'),context);vm.runInContext(fs.readFileSync('frontend/task.js','utf8'),context);
 (async()=>{
  const files=vm.runInContext('planned.slice()',context);
  messageHandler({data:{type:'streamlit:render',args:{available_media:[...files,'sound-check.mp3']}}});assert.equal(elements.prepare.disabled,false);
- elements.preview.checked=false;
+ 
  await elements.settings.onsubmit({preventDefault(){}});assert.equal(elements.start.disabled,false);elements.start.onclick();
  assert.equal(elements.task.hidden,false);
  const run=code=>vm.runInContext(code,context);
@@ -30,6 +30,6 @@ vm.runInContext(fs.readFileSync('frontend/engine.js','utf8'),context);vm.runInCo
  elements.reset.onclick();elements.caregiver.value='pet';await elements.settings.onsubmit({preventDefault(){}});elements.start.onclick();
  clock+=40000;run('tick()');elements.reprimand.onclick();assert.equal(run('model.barking'),true);
  elements.sit.onclick();assert.match(run('activeName'),/Standing to Sitting Barking/);elements.pet.onclick();assert.match(run('activeName'),/Sitting Petted Quiet/);assert.equal(run('model.barking'),false);
- elements.stop.onclick();elements.reset.onclick();messageHandler({data:{type:'streamlit:render',args:{available_media:[]}}});await elements.settings.onsubmit({preventDefault(){}});assert.match(elements.error.textContent,/Upload these clips/);
+ elements.stop.onclick();elements.reset.onclick();messageHandler({data:{type:'streamlit:render',args:{available_media:[]}}});await elements.settings.onsubmit({preventDefault(){}});assert.match(elements.error.textContent,/Missing media files/);
  console.log('PASS: media discovery, four buttons, both targets, audio, mute rules, one-shot actions, seated bases, missing-media gate');
 })().catch(e=>{console.error(e);process.exitCode=1;});

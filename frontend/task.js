@@ -31,8 +31,6 @@ function required(c){const sounds=c.condition==='no_barking'?['quiet']:['quiet',
 window.addEventListener('message',e=>{
  if(e.data?.type!=='streamlit:render')return;
  available=new Set(e.data.args?.available_media??[]);
- $('assets').replaceChildren(...planned.map(name=>{const line=document.createElement('div');line.textContent=(available.has(name)?'Available: ':'Pending: ')+name;return line;}));
- $('media-status').textContent=`${Object.values(clips).filter(n=>available.has(n)).length} of 10 videos and ${Object.values(recordings).filter(n=>available.has(n)).length} of 3 command recordings uploaded. Sound check ${available.has('sound-check.mp3')?'available':'missing'}. Quiet videos are muted; spoken button recordings remain audible.`;
  $('prepare').disabled=false;$('prepare').textContent='Prepare session';resize();
 });
 send('streamlit:componentReady',{apiVersion:1});
@@ -59,11 +57,11 @@ async function preload(names){
  })));
 }
 $('settings').onsubmit=async e=>{
- e.preventDefault();config={participant:$('participant').value.trim(),caregiver:$('caregiver').value,condition:$('condition').value,preview:$('preview').checked};
+ e.preventDefault();config={participant:$('participant').value.trim(),caregiver:$('caregiver').value,condition:$('condition').value,preview:false};
  for(const k of ['trials','duration','interval','extinctionDelay'])config[k]=Number($(k).value);
  if(!config.participant||config.interval<=config.duration){$('error').textContent='Enter a participant ID and an onset interval longer than the trial window.';return;}
  const missing=required(config).filter(n=>!available.has(n));
- if(!config.preview&&missing.length){$('error').textContent='Upload these clips or enable researcher preview: '+missing.join(', ');return;}
+ if(!config.preview&&missing.length){$('error').textContent='Missing media files: '+missing.join(', ');return;}
  $('error').textContent='';$('sound-check').pause();$('sound-check').currentTime=0;
  $('preview-notice').hidden=!config.preview;$('ready-error').textContent='';$('start').disabled=true;$('start').textContent='Loading videos and audio…';phase='ready';show('ready');
  const names=required(config).filter(n=>available.has(n));
