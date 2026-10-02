@@ -12,7 +12,9 @@ const labels={stop:'Penny, stop barking!',pet:'Pet Penny',sit:'Sit!',praise:'Goo
 const buttons={stop:'reprimand',pet:'pet',sit:'sit',praise:'praise'};
 const planned=[...Object.values(clips),...Object.values(recordings)];
 const voices=new Map();
-function voice(name){if(!voices.has(name)){const a=document.createElement('audio');a.src='media/'+encodeURIComponent(name);a.preload='auto';voices.set(name,a);}return voices.get(name);}
+// Use URL-safe copies of uploaded assets; original filenames remain in the checklist.
+function mediaUrl(name){return 'media/'+name.toLowerCase().replaceAll(' ','-');}
+function voice(name){if(!voices.has(name)){const a=document.createElement('audio');a.src=mediaUrl(name);a.preload='auto';voices.set(name,a);}return voices.get(name);}
 function speak(which){
  for(const a of voices.values())a.pause();
  const name=recordings[which];if(!name||!available.has(name))return;
@@ -38,7 +40,7 @@ function elapsed(){return performance.now()-startClock;}
 function pauseMedia(){for(const p of players.values()){p.pause();p.hidden=true;}active=null;activeName='';}
 function getPlayer(name){
  if(players.has(name))return players.get(name);
- const p=document.createElement('video');p.src='media/'+encodeURIComponent(name);p.playsInline=true;p.preload='auto';p.hidden=true;
+ const p=document.createElement('video');p.src=mediaUrl(name);p.playsInline=true;p.preload='auto';p.hidden=true;
  p.addEventListener('error',()=>{if(phase==='running')end('media_error: '+name);});
  p.addEventListener('waiting',()=>{if(phase==='running'&&p===active)model.event('video_waiting',elapsed(),{file:name});});
  p.addEventListener('ended',()=>{
