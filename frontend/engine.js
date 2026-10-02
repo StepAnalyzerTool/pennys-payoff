@@ -23,7 +23,7 @@ class PlaydateSession {
    // At a tie, complete the previous episode before a new scheduled onset.
    if(nextOffset===at){this.barking=false;this.event('barking_offset',at,{trial:this.episode.trial,reason:'time_requirement_met'});this.episode.actual_offset_ms=at;this.episode=null;continue;}
    if(nextOnset===at){
-    const n=this.next++;const row={trial:n,onset_ms:at,window_end_ms:at+this.config.duration*1000,target_count:0,sit_count:0,target_occurred:false,first_target_latency_ms:null,actual_offset_ms:null,skipped:false};
+    const n=this.next++;const row={trial:n,onset_ms:at,window_end_ms:at+this.config.duration*1000,target_count:0,stop_count:0,pet_count:0,praise_count:0,sit_count:0,target_occurred:false,first_target_latency_ms:null,actual_offset_ms:null,skipped:false};
     this.rows.push(row);
     if(this.episode){row.skipped=true;this.event('scheduled_onset_skipped',at,{trial:n,ongoing_trial:this.episode.trial});continue;}
     this.posture='standing';this.barking=this.config.condition!=='no_barking';
@@ -36,19 +36,21 @@ class PlaydateSession {
   this.time=time;
  }
  respond(action,time){
+  if(!['sit','stop','pet','praise'].includes(action))throw Error('Unknown response');
   this.advance(time);if(!this.running)return null;
   const row=this.rows.find(r=>!r.skipped&&time>=r.onset_ms&&time<r.window_end_ms);
   const response={action,elapsed_ms:time,trial:row?.trial??null,episode_trial:this.episode?.trial??null,period:row?'trial_window':this.episode?'extinction_extension':this.next===1?'initial_quiet':'between_trials',posture_before:this.posture,barking_before:this.barking,terminated_barking:false};
-  if(action==='sit'){
-   if(row)row.sit_count++;this.posture='sitting';
-  }else if(action==='target'){
+  response.is_target=action===this.config.caregiver;
+  if(row)row[action+'_count']++;
+  if(action==='sit')this.posture='sitting';
+  if(response.is_target){
    if(row){row.target_count++;row.target_occurred=true;if(row.first_target_latency_ms===null)row.first_target_latency_ms=time-row.onset_ms;}
    if(this.episode&&this.config.condition==='extinction')this.episode.last_target_ms=time;
    if(this.barking&&this.config.condition==='negative_reinforcement'){
     response.terminated_barking=true;this.barking=false;this.episode.actual_offset_ms=time;
     this.event('barking_offset',time,{trial:this.episode.trial,reason:'target_response'});this.episode=null;
    }
-  }else throw Error('Unknown response');
+  }
   response.posture_after=this.posture;response.barking_after=this.barking;
   this.responses.push(response);return response;
  }
@@ -56,3 +58,4 @@ class PlaydateSession {
 }
 if(typeof module!=='undefined')module.exports=PlaydateSession;else root.PlaydateSession=PlaydateSession;
 })(globalThis);
+
