@@ -88,6 +88,10 @@ function filename(){
  return clips[key+'-'+sound];
 }
 function render(force=false){
+ // Paired Sit clips reach the seated posture at different times.
+ // Once Sit has been requested, a sound-state change uses the seated base
+ // instead of seeking into another standing-to-sitting transition.
+ if(action?.kind==='sit'&&action.clipName&&action.clipName!==filename())action=null;
  let name=filename(),fallback=false;
  if(!available.has(name)){fallback=true;name=model.barking&&available.has('barking.mp4')?'barking.mp4':'';}
  $('preview-state').hidden=!config.preview;

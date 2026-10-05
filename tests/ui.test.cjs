@@ -26,6 +26,18 @@ vm.runInContext(fs.readFileSync('frontend/engine.js','utf8'),context);vm.runInCo
  elements.reprimand.onclick();assert.match(run('activeName'),/Standing Petted Quiet/);assert.equal(run('active.muted'),true);assert.equal(run('active.currentTime'),3);
  assert.equal(run('model.responses.length'),5);run('active.listeners.ended()');assert.match(run('activeName'),/Standing Quiet/);
  for(const id of ['sit','pet','praise','reprimand'])assert.equal(elements[id].disabled,false);
+
+ // Carley's sequence: barking Sit clip has seated Penny but has not ended.
+ clock=80000;run('tick()');elements.sit.onclick();
+ assert.equal(run('activeName'),'Standing to Sitting Barking 5.mov');
+ run('active.currentTime=5');elements.reprimand.onclick();
+ assert.equal(run('activeName'),'Sitting Quiet 4.mov');
+ assert.equal(run('active.loop'),true);assert.equal(run('active.muted'),true);
+ assert.equal(run('model.posture'),'sitting');assert.equal(run('model.barking'),false);
+ // A scheduled offset during Sit must also use the seated quiet base.
+ clock=120000;run('tick()');clock=139000;elements.sit.onclick();
+ clock=140000;run('tick()');assert.equal(run('activeName'),'Sitting Quiet 4.mov');
+
  elements.stop.onclick();assert.equal(elements.done.hidden,false);assert.equal(run('[...voices.values()].every(a=>a.paused)'),true);
  elements.reset.onclick();elements.caregiver.value='pet';await elements.settings.onsubmit({preventDefault(){}});elements.start.onclick();
  clock+=40000;run('tick()');elements.reprimand.onclick();assert.equal(run('model.barking'),true);
