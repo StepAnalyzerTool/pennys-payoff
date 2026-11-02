@@ -1,44 +1,36 @@
 # Penny’s Playdate 🐾
 
-Streamlit caregiver-response research prototype. The GitHub repository and deployment location remain `StepAnalyzerTool/pennys-payoff`; the app and downloaded data use Penny’s Playdate.
+Streamlit caregiver-response research prototype. Repository: StepAnalyzerTool/pennys-payoff. Run `streamlit run app.py` after installing requirements.txt. Deployment uses branch main and entry point app.py.
 
-## Run and deploy
+## Setup and session
 
-Install `requirements.txt`, then run `streamlit run app.py`. Streamlit Community Cloud entry point: `app.py`, branch `main`.
+The sound test uses flute-db-test.wav with an instruction to adjust the sound level to 70 dB. Researcher setup selects participant ID, target response (Penny, stop barking! or Pet Penny), condition, number of trials, and trial duration.
 
-## Setup
+Defaults are five consecutive 30-second trials: onsets at 0, 30, 60, 90, and 120 seconds; the session ends at 150 seconds. The onset interval always equals the trial duration. There is no initial waiting period or gap between trials.
 
-The sound test appears first. Researcher setup selects the target response (“Penny, stop barking!” or Pet Penny) and condition (No barking, Negative reinforcement, Extinction). The participant is asked to play with Penny and teach her to sit. Four buttons remain available throughout: Penny, stop barking!; Pet Penny; Good girl, Penny!; and Tell Penny “Sit!”. Condition names and the target selection are hidden. Every click is recorded.
+All four buttons remain available and repeatable: Say “Sit!”, Say “Penny, stop barking!”, Pet Penny, and Say “Good girl, Penny!”. “I’m done” ends the session immediately and opens the data-download screen.
 
-Defaults: 5 trials, 20-second observation windows, 40-second onset intervals, and a 5-second extinction omission requirement. The 40-second interval is a provisional shortened schedule, still adjustable. Quiet lead-in lasts one interval. Default onsets: 40, 80, 120, 160, 200 seconds. Default session end: 240 seconds, extended if an extinction episode is ongoing.
+- No barking: quiet throughout.
+- Negative reinforcement: barking starts at each trial onset. Only the selected target response terminates barking, producing quiet until the next onset. Without a target response, barking continues across trial boundaries until the session ends.
+- Extinction: barking continues across all five trials regardless of responding, until the session ends. There is no timed cutoff, omission interval, extension, or skipped trial.
+- Penny starts each trial standing. Sit changes posture without changing barking; posture persists until the next onset. Petting preserves posture; praise never changes barking.
 
-- No barking: quiet throughout, with identical observation windows and posture resets.
-- Negative reinforcement: each trial starts barking; the target response immediately stops it until the next scheduled onset. Without a target response it stops after the trial window.
-- Extinction: barking lasts at least the trial window and stops only when 5 seconds have elapsed without a target response. Repeated target responses reset that requirement; the other caregiver response, praise, and Sit do not.
-- Every actual trial onset resets posture to standing. Sit changes posture to sitting without changing barking. Posture persists through the quiet period; petting preserves posture. Repeated Sit responses are recorded but do not restart the sitting transition.
-- No response-dependent future barking probabilities, toy response, or black screens.
+This is an adaptation, not an exact replication, of Miller, Lerman, & Fritz (2010), https://doi.org/10.1901/jaba.2010.43-769.
 
-The original study used 30-second windows, 60-second onsets, and usually 9 trials. This prototype is an adaptation, not an exact replication. Its explicit overlap policy (not specified in the article): if extinction continues across a scheduled onset, that onset is skipped and logged. Do not reset posture or cut off the ongoing episode. Do not add replacement trials. Session end waits for extinction to finish; End session always remains available.
+## Media
 
-Reference: Miller, Lerman, & Fritz (2010), https://doi.org/10.1901/jaba.2010.43-769.
+Ten uploaded videos and three spoken recordings are used. Playback uses lowercase filenames with hyphens; original filenames are retained in the repository. Quiet videos are muted, while barking videos retain their supplied audio. Spoken responses use their corresponding M4A recordings.
 
-## Media and researcher preview
+Standing and seated base clips loop. Sitting transitions and petting clips play once and return to the corresponding base. If barking stops during a sitting transition, playback switches directly to the seated quiet base. Repeated pet clicks are recorded without restarting the current petting animation. A new spoken response interrupts the previous spoken recording. Scheduled trial onsets reset posture and action animations.
 
-All 10 supplied videos and three spoken recordings are connected using their original filenames in `frontend/media`. The media checklist shows their availability. Normal playback is the default; researcher preview must be explicitly enabled to permit missing media.
-
-Standing and sitting base clips loop. Standing-to-sitting and petting clips play once to their natural end, then return to the corresponding posture/barking base. Repeated pet clicks are recorded without restarting an ongoing pet animation. Sit can interrupt standing petting; Pet can interrupt a sitting transition and uses the seated petting clip. Scheduled onsets override action animations. Barking changes immediately select the paired quiet/barking video, preserving action playback position where possible.
-
-Quiet videos are always muted, including their background music. Barking videos retain their supplied audio. The Stop, Sit, and Good girl buttons play the matching M4A recordings. A new button response interrupts any previous spoken recording; every click is still logged. There is no separate petting audio. `sound-check.mp3` is used only by the startup audio player. The old toy clip is unused.
-
-Preview can use the original mixed-posture barking clip or a text placeholder if media are missing. Preview exports are flagged. Normal mode requires all media for the selected condition, including both caregiver actions regardless of target selection.
-
-Browser playback, buffering, background tabs and media transitions can affect actual presentation timing. The clock runs independently of clip duration; waiting and visibility events are logged. Inspect new clips and actual playback before data collection.
+The session clock runs independently of clip duration. Browser buffering and clip joins can affect presentation; video waiting and visibility changes are logged. The old toy and sound-check files are unused.
 
 ## Data
 
-Download trial CSV, response CSV, and full JSON. Trial counts/occurrence cover the fixed observation windows, including quiet responses following early relief. Responses in initial quiet, between trials, or during an extinction extension are separately tagged in the response log. Skipped windows have `skipped=true` and should not be interpreted as observed zero-response trials. Exports identify caregiver target, condition and preview status. Trial CSV includes separate stop, pet, praise, and sit counts plus target counts. Responses identify the actual action and whether it was the selected target. JSON contains settings, actual episode offsets, all responses, event logs and end reason. There is no automatic participant-data storage; download before closing or refreshing.
+Download trial CSV, response CSV, and full JSON before leaving. There is no automatic participant-data storage.
+
+Trial exports include counts for each action and the selected target, first-target latency, scheduled window boundaries, actual end time, barking state at the start/end of each observation window, and actual barking-offset time. A window ending does not imply barking stopped: actual_offset_ms may fall in a later trial if barking continued. An early exit truncates the current window. Response records identify the actual action, selected-target status, trial, ongoing barking episode origin, and whether the response terminated barking. JSON includes settings, event logs, end reason, and elapsed time. Version 0.4.0 uses the contiguous-trial protocol.
 
 ## Checks
 
-`node tests/task.test.cjs` checks the pure timing/response model, including omission extensions, overlap, posture and quiet responses. `node tests/ui.test.cjs` checks setup and controller integration with simulated DOM/media. Actual audiovisual playback needs a check in the deployed app.
-
+Run `node tests/task.test.cjs` and `node tests/ui.test.cjs`. These cover five contiguous windows, both target selections, response-only relief, uninterrupted extinction state, seated relief, exact session termination, early exit, and stopping all media.

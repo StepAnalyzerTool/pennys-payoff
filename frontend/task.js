@@ -58,8 +58,9 @@ async function preload(names){
 }
 $('settings').onsubmit=async e=>{
  e.preventDefault();config={participant:$('participant').value.trim(),caregiver:$('caregiver').value,condition:$('condition').value,preview:false};
- for(const k of ['trials','duration','interval','extinctionDelay'])config[k]=Number($(k).value);
- if(!config.participant||config.interval<=config.duration){$('error').textContent='Enter a participant ID and an onset interval longer than the trial window.';return;}
+ for(const k of ['trials','duration'])config[k]=Number($(k).value);
+ config.interval=config.duration;
+ if(!config.participant||!Number.isInteger(config.trials)||config.trials<1||!Number.isFinite(config.duration)||config.duration<=0){$('error').textContent='Enter a participant ID, a positive whole number of trials, and a positive trial duration.';return;}
  const missing=required(config).filter(n=>!available.has(n));
  if(!config.preview&&missing.length){$('error').textContent='Missing media files: '+missing.join(', ');return;}
  $('error').textContent='';$('sound-check').pause();$('sound-check').currentTime=0;
@@ -71,7 +72,7 @@ $('settings').onsubmit=async e=>{
 };
 $('back').onclick=()=>{phase='setup';show('setup');};
 $('start').onclick=()=>{
- sessionId=crypto.randomUUID();startedUtc=new Date().toISOString();startClock=performance.now();model=new PlaydateSession(config);observedTrials=0;action=null;
+ sessionId=crypto.randomUUID();startedUtc=new Date().toISOString();startClock=performance.now();model=new PlaydateSession(config);observedTrials=model.rows.length;action=null;
  phase='running';for(const id of Object.values(buttons))$(id).disabled=false;$('feedback').textContent='';show('task');
  render(true);ticker=setInterval(tick,25);
 };
@@ -123,13 +124,12 @@ for(const [which,id] of Object.entries(buttons))$(id).onclick=()=>respond(which)
 function end(reason){if(phase!=='running')return;model.stop(elapsed(),reason);complete();}
 function complete(){
  clearInterval(ticker);pauseMedia();phase='done';for(const id of Object.values(buttons))$(id).disabled=true;for(const a of voices.values())a.pause();action=null;
- const skipped=model.rows.filter(r=>r.skipped).length;
- $('summary').textContent=`${model.responses.length} responses recorded; ${model.rows.length} scheduled trial onsets reached${skipped?`, ${skipped} skipped because extinction continued`:''}. ${model.reason==='completed'?'Session complete.':model.reason} Download your data before starting again.`;
+ $('summary').textContent=`${model.responses.length} responses recorded; ${model.rows.length} of ${config.trials} trials started. ${model.reason==='completed'?'Session complete.':model.reason==='participant_ended'?'You ended the session.':model.reason} Download your data before starting again.`;
  show('done');
 }
 $('stop').onclick=()=>end('participant_ended');
 document.addEventListener('visibilitychange',()=>{if(phase==='running')model.event('visibility_change',elapsed(),{hidden:document.hidden});});
-function fullData(){return {version:'0.3.0',title:'Penny’s Playdate',session_id:sessionId,started_utc:startedUtc,config,available_media:[...available],timing_policy:'fixed onsets; overlapping extinction onsets skipped; finish waits for ongoing extinction',end_reason:model.reason,elapsed_ms:model.time,trials:model.rows,responses:model.responses,events:model.events};}
+function fullData(){return {version:'0.4.0',title:'Penny’s Playdate',session_id:sessionId,started_utc:startedUtc,config,available_media:[...available],timing_policy:'contiguous trials from session start; NR target-only relief until next trial; extinction continuous until session end',end_reason:model.reason,elapsed_ms:model.time,trials:model.rows,responses:model.responses,events:model.events};}
 function download(content,mime,ext){const url=URL.createObjectURL(new Blob([content],{type:mime})),a=document.createElement('a');a.href=url;a.download=`pennys-playdate-${sessionId}-${ext}`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 function csv(rows,name){const output=rows.map(row=>({session_id:sessionId,participant:config.participant,caregiver:config.caregiver,condition:config.condition,preview:config.preview,...row}));const keys=[...new Set(output.flatMap(Object.keys))];const esc=v=>'"'+String(v??'').replace(/^[=+@-]/,"'$&").replaceAll('"','""')+'"';download([keys.map(esc).join(','),...output.map(r=>keys.map(k=>esc(r[k])).join(','))].join('\r\n'),'text/csv;charset=utf-8',name+'.csv');}
 $('csv').onclick=()=>csv(model.rows,'trials');$('responses').onclick=()=>csv(model.responses,'responses');$('json').onclick=()=>download(JSON.stringify(fullData(),null,2),'application/json','session.json');
